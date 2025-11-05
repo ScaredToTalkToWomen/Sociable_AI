@@ -58,10 +58,12 @@ export function SocialAccounts() {
   };
 
   const handleConnectAccount = async (platformId: string) => {
+    alert(`handleConnectAccount called with platform: ${platformId}`);
     const platform = platforms.find(p => p.id === platformId);
     if (platform) {
       setSelectedPlatform(platform);
       setShowLoginPage(true);
+      alert('About to show login page modal');
     }
   };
 
