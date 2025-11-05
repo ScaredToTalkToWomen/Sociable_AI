@@ -36,22 +36,6 @@ export function TwitterOAuthRedirect() {
 
       setMessage('Connecting to Twitter...');
 
-      const response = await fetch('https://zhengbin.app.n8n.cloud/webhook-test/x-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform: 'twitter',
-          userId: user?.id,
-          username: savedUsername,
-          code: code,
-          state: state,
-          action: 'oauth_callback',
-          timestamp: new Date().toISOString(),
-        }),
-      });
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to connect Twitter account: ${response.status}. ${errorText || 'Please try again or contact support.'}`);
