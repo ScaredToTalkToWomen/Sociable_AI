@@ -16,7 +16,6 @@ https://oauth.n8n.cloud/oauth1/callback/twitter
 **For Production:**
 ```
 https://yourdomain.com/auth/callback/twitter
-https://yourdomain.com/oauth/twitter/callback
 ```
 
 ### How to Configure
