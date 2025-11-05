@@ -11,8 +11,11 @@ export function OAuthCallback() {
   const [message, setMessage] = useState('Processing authentication...');
 
   useEffect(() => {
-    handleOAuthCallback();
-  }, []);
+    const timer = setTimeout(() => {
+      handleOAuthCallback();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [user]);
 
   const handleOAuthCallback = async () => {
     try {
@@ -41,8 +44,10 @@ export function OAuthCallback() {
 
       const tokenData = await exchangeCodeForToken(platform, code, state);
 
-      if (!user) {
-        throw new Error('User not authenticated');
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      if (!currentUser) {
+        throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
       }
 
       const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
@@ -56,7 +61,7 @@ export function OAuthCallback() {
       const { data: existingAccount } = await supabase
         .from('social_accounts')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('platform', platform)
         .eq('account_handle', accountInfo.handle)
         .maybeSingle();
@@ -82,7 +87,7 @@ export function OAuthCallback() {
           : null;
 
         const { error: dbError } = await supabase.from('social_accounts').insert({
-          user_id: user.id,
+          user_id: currentUser.id,
           platform: platform,
           account_name: storedDisplayName || accountInfo.name,
           account_handle: accountInfo.handle,
