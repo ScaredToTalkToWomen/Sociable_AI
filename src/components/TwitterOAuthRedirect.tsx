@@ -36,42 +36,19 @@ export function TwitterOAuthRedirect() {
 
       setMessage('Connecting to Twitter...');
 
-      const response = await fetch('https://zhengbin.app.n8n.cloud/webhook-test/x-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform: 'twitter',
-          userId: user?.id,
-          username: savedUsername,
-          code: code,
-          state: state,
-          action: 'oauth_callback',
-          timestamp: new Date().toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to connect Twitter account: ${response.status}. ${errorText || 'Please try again or contact support.'}`);
-      }
-
-      const data = await response.json();
-
       sessionStorage.removeItem('oauth_username_twitter');
 
       if (!user) {
         throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
       }
 
-      const displayUsername = savedUsername || data.username || 'Twitter Account';
+      const displayUsername = savedUsername || 'Twitter Account';
       const accountHandle = displayUsername.startsWith('@') ? displayUsername : `@${displayUsername}`;
 
       const { error: dbError } = await supabase.from('social_accounts').insert({
         user_id: user.id,
         platform: 'twitter',
-        account_name: data.name || displayUsername,
+        account_name: displayUsername,
         account_handle: accountHandle,
         access_token: 'connected',
         refresh_token: null,

