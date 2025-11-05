@@ -49,13 +49,27 @@ export function OAuthCallback() {
 
       setMessage(`Connecting to ${platform}...`);
 
+      let { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        const savedSession = localStorage.getItem(`oauth_supabase_session_${platform}`);
+        if (savedSession) {
+          const { data, error: setSessionError } = await supabase.auth.setSession(JSON.parse(savedSession));
+          if (!setSessionError && data.session) {
+            session = data.session;
+          }
+        }
+      }
+
+      if (!session?.user) {
+        throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
+      }
+
       const tokenData = await exchangeCodeForToken(platform, code, state);
 
       const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
 
       console.log('Account info retrieved:', accountInfo);
-
-      const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
         const expiresAt = tokenData.expires_in
