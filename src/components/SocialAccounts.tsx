@@ -27,6 +27,64 @@ export function SocialAccounts() {
     if (user) {
       loadAccounts();
     }
+
+    const handleOAuthMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'oauth_success') {
+        const platform = event.data.platform;
+        const oauthData = localStorage.getItem(`oauth_success_${platform}`);
+
+        if (oauthData && user) {
+          try {
+            const data = JSON.parse(oauthData);
+
+            const { data: existingAccount } = await supabase
+              .from('social_accounts')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('platform', platform)
+              .eq('account_handle', data.accountInfo.handle)
+              .maybeSingle();
+
+            if (existingAccount) {
+              await supabase
+                .from('social_accounts')
+                .update({
+                  access_token: data.tokenData.access_token,
+                  refresh_token: data.tokenData.refresh_token,
+                  token_expires_at: data.tokenData.expires_in
+                    ? new Date(Date.now() + data.tokenData.expires_in * 1000).toISOString()
+                    : null,
+                  is_connected: true,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', existingAccount.id);
+            } else {
+              await supabase.from('social_accounts').insert({
+                user_id: user.id,
+                platform: platform,
+                account_name: data.accountInfo.name,
+                account_handle: data.accountInfo.handle,
+                access_token: data.tokenData.access_token,
+                refresh_token: data.tokenData.refresh_token,
+                token_expires_at: data.tokenData.expires_in
+                  ? new Date(Date.now() + data.tokenData.expires_in * 1000).toISOString()
+                  : null,
+                is_connected: true,
+              });
+            }
+
+            localStorage.removeItem(`oauth_success_${platform}`);
+            await loadAccounts();
+            setShowAddMenu(false);
+          } catch (error) {
+            console.error('Error saving OAuth data:', error);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
   }, [user]);
 
   const loadAccounts = async () => {

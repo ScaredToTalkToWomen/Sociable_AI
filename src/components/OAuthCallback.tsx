@@ -47,114 +47,35 @@ export function OAuthCallback() {
         throw new Error('Platform not specified');
       }
 
-      let currentUser = null;
-
-      const { data: { session: existingSession } } = await supabase.auth.getSession();
-
-      console.log('Session Check:', {
-        hasExistingSession: !!existingSession,
-        hasUser: !!existingSession?.user,
-      });
-
-      if (existingSession?.user) {
-        currentUser = existingSession.user;
-      } else {
-        const savedSession = localStorage.getItem(`oauth_supabase_session_${platform}`);
-        console.log('Saved Session:', {
-          hasSavedSession: !!savedSession,
-        });
-
-        if (savedSession) {
-          try {
-            const parsedSession = JSON.parse(savedSession);
-            const { data, error: sessionError } = await supabase.auth.setSession({
-              access_token: parsedSession.access_token,
-              refresh_token: parsedSession.refresh_token,
-            });
-
-            console.log('Restore Session Result:', {
-              hasData: !!data,
-              hasUser: !!data?.user,
-              error: sessionError?.message,
-            });
-
-            if (!sessionError && data.user) {
-              currentUser = data.user;
-            }
-            localStorage.removeItem(`oauth_supabase_session_${platform}`);
-          } catch (e) {
-            console.error('Failed to restore session:', e);
-          }
-        }
-      }
-
-      if (!currentUser) {
-        console.error('No user found after all attempts');
-        throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
-      }
-
-      console.log('Successfully authenticated, user ID:', currentUser.id);
-
       setMessage(`Connecting to ${platform}...`);
 
       const tokenData = await exchangeCodeForToken(platform, code, state);
 
       const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
 
-      const storedUsername = sessionStorage.getItem(`oauth_username_${platform}`);
-      const storedDisplayName = sessionStorage.getItem(`oauth_display_name_${platform}`);
+      console.log('Account info retrieved:', accountInfo);
 
-      sessionStorage.removeItem(`oauth_username_${platform}`);
-      sessionStorage.removeItem(`oauth_display_name_${platform}`);
-
-      const { data: existingAccount } = await supabase
-        .from('social_accounts')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .eq('platform', platform)
-        .eq('account_handle', accountInfo.handle)
-        .maybeSingle();
-
-      if (existingAccount) {
-        const { error: updateError } = await supabase
-          .from('social_accounts')
-          .update({
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token || null,
-            token_expires_at: tokenData.expires_in
-              ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-              : null,
-            is_connected: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingAccount.id);
-
-        if (updateError) throw updateError;
-      } else {
-        const expiresAt = tokenData.expires_in
-          ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-          : null;
-
-        const { error: dbError } = await supabase.from('social_accounts').insert({
-          user_id: currentUser.id,
-          platform: platform,
-          account_name: storedDisplayName || accountInfo.name,
-          account_handle: accountInfo.handle,
+      localStorage.setItem(`oauth_success_${platform}`, JSON.stringify({
+        platform,
+        accountInfo,
+        tokenData: {
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token || null,
-          token_expires_at: expiresAt,
-          is_connected: true,
-        });
-
-        if (dbError) throw dbError;
-      }
+          expires_in: tokenData.expires_in,
+        },
+        timestamp: Date.now(),
+      }));
 
       setStatus('success');
       setMessage(`Successfully connected your ${platform} account!`);
 
       setTimeout(() => {
-        window.close();
-        window.opener?.postMessage({ type: 'oauth_success', platform }, window.location.origin);
+        if (window.opener) {
+          window.opener.postMessage({ type: 'oauth_success', platform }, window.location.origin);
+          window.close();
+        } else {
+          window.location.href = '/';
+        }
       }, 2000);
     } catch (error: any) {
       console.error('OAuth callback error:', error);
