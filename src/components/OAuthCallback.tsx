@@ -40,21 +40,39 @@ export function OAuthCallback() {
         throw new Error('Platform not specified');
       }
 
-      const savedSession = localStorage.getItem(`oauth_supabase_session_${platform}`);
-      if (savedSession) {
-        await supabase.auth.setSession(JSON.parse(savedSession));
-        localStorage.removeItem(`oauth_supabase_session_${platform}`);
+      let currentUser = null;
+
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+
+      if (existingSession?.user) {
+        currentUser = existingSession.user;
+      } else {
+        const savedSession = localStorage.getItem(`oauth_supabase_session_${platform}`);
+        if (savedSession) {
+          try {
+            const parsedSession = JSON.parse(savedSession);
+            const { data, error: sessionError } = await supabase.auth.setSession({
+              access_token: parsedSession.access_token,
+              refresh_token: parsedSession.refresh_token,
+            });
+
+            if (!sessionError && data.user) {
+              currentUser = data.user;
+            }
+            localStorage.removeItem(`oauth_supabase_session_${platform}`);
+          } catch (e) {
+            console.error('Failed to restore session:', e);
+          }
+        }
+      }
+
+      if (!currentUser) {
+        throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
       }
 
       setMessage(`Connecting to ${platform}...`);
 
       const tokenData = await exchangeCodeForToken(platform, code, state);
-
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-      if (!currentUser) {
-        throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
-      }
 
       const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
 
