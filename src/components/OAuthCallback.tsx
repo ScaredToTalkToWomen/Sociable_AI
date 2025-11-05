@@ -95,21 +95,6 @@ export function OAuthCallback() {
         if (dbError) throw dbError;
       }
 
-      await fetch('https://danieljohnsgp.app.n8n.cloud/webhook-test/connect-social', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform: platform,
-          userId: user.id,
-          accountName: accountInfo.name,
-          accountHandle: accountInfo.handle,
-          timestamp: new Date().toISOString(),
-          status: 'connected',
-        }),
-      }).catch((err) => console.error('Webhook error:', err));
-
       setStatus('success');
       setMessage(`Successfully connected your ${platform} account!`);
 
