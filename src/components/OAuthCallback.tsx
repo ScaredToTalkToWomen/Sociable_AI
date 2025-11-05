@@ -25,6 +25,13 @@ export function OAuthCallback() {
       const error = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
 
+      console.log('OAuth Callback Debug:', {
+        hasCode: !!code,
+        hasState: !!state,
+        error,
+        errorDescription,
+      });
+
       if (error) {
         throw new Error(errorDescription || error);
       }
@@ -44,16 +51,31 @@ export function OAuthCallback() {
 
       const { data: { session: existingSession } } = await supabase.auth.getSession();
 
+      console.log('Session Check:', {
+        hasExistingSession: !!existingSession,
+        hasUser: !!existingSession?.user,
+      });
+
       if (existingSession?.user) {
         currentUser = existingSession.user;
       } else {
         const savedSession = localStorage.getItem(`oauth_supabase_session_${platform}`);
+        console.log('Saved Session:', {
+          hasSavedSession: !!savedSession,
+        });
+
         if (savedSession) {
           try {
             const parsedSession = JSON.parse(savedSession);
             const { data, error: sessionError } = await supabase.auth.setSession({
               access_token: parsedSession.access_token,
               refresh_token: parsedSession.refresh_token,
+            });
+
+            console.log('Restore Session Result:', {
+              hasData: !!data,
+              hasUser: !!data?.user,
+              error: sessionError?.message,
             });
 
             if (!sessionError && data.user) {
@@ -67,8 +89,11 @@ export function OAuthCallback() {
       }
 
       if (!currentUser) {
+        console.error('No user found after all attempts');
         throw new Error('You are not logged in. Please log in first and try connecting your Twitter account again.');
       }
+
+      console.log('Successfully authenticated, user ID:', currentUser.id);
 
       setMessage(`Connecting to ${platform}...`);
 
